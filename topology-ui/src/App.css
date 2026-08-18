@@ -1,0 +1,26 @@
+.app {
+  width: 100vw;
+  height: 100vh;
+}
+
+.header {
+  height: 90px;
+  padding: 20px 30px;
+  background: #111827;
+  color: white;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.header p {
+  margin-top: 8px;
+  color: #cbd5e1;
+}
+
+.flow-container {
+  width: 100%;
+  height: calc(100vh - 90px);
+}

@@ -10,10 +10,8 @@ consumer = Consumer({
 consumer.subscribe(["test-topic"])
 
 truck_state = {}
-
-print("StreamForge Worker started...")
-print("Live fleet monitoring active...")
-
+print("StreamForge Worker 2 started...")
+print("Worker 2 processing assigned partitions...")
 try:
     while True:
         msg = consumer.poll(1.0)

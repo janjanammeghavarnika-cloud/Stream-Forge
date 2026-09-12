@@ -1,5 +1,7 @@
-import json
+﻿import json
 from confluent_kafka import Consumer
+from state_manager import StateManager
+
 
 consumer = Consumer({
     "bootstrap.servers": "localhost:9092",
@@ -9,11 +11,15 @@ consumer = Consumer({
 
 consumer.subscribe(["test-topic"])
 
-truck_state = {}
+state_manager = StateManager("week-3/state/worker-2")
+
 print("StreamForge Worker 2 started...")
 print("Worker 2 processing assigned partitions...")
+
+
 try:
     while True:
+
         msg = consumer.poll(1.0)
 
         if msg is None:
@@ -30,17 +36,15 @@ try:
             temperature = data["temperature"]
             timestamp = data["timestamp"]
 
-            truck_state[truck_id] = {
-                "temperature": temperature,
-                "timestamp": timestamp
-            }
-
-            high_count = sum(
-                1 for truck in truck_state.values()
-                if truck["temperature"] >= 35
+            state_manager.save_reading(
+                truck_id,
+                temperature,
+                timestamp
             )
 
-            normal_count = len(truck_state) - high_count
+            rolling_average = state_manager.get_rolling_average(
+                truck_id
+            )
 
             if temperature >= 35:
                 status = "HIGH TEMPERATURE"
@@ -50,23 +54,19 @@ try:
             print(
                 f"Truck: {truck_id} | "
                 f"Temperature: {temperature}°C | "
+                f"5-Min Average: {rolling_average:.2f}°C | "
                 f"Status: {status}"
             )
 
-            print(
-                f"Fleet Summary → "
-                f"Total: {len(truck_state)} | "
-                f"Normal: {normal_count} | "
-                f"High: {high_count}"
-            )
-
-            print("-" * 60)
+            print("Worker 2 state saved to RocksDB ✓")
+            print("-" * 70)
 
         except (json.JSONDecodeError, KeyError) as e:
             print("Invalid telemetry:", e)
 
 except KeyboardInterrupt:
-    print("\nWorker stopped.")
+    print("\nWorker 2 stopped.")
 
 finally:
+    state_manager.close()
     consumer.close()

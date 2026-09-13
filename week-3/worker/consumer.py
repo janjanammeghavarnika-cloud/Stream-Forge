@@ -52,14 +52,17 @@ try:
                 truck_id
             )
 
-            # Create changelog record
+            # Get complete current state for recovery
+            truck_state = state_manager.get_state(truck_id)
+
             changelog_data = {
                 "truck_id": truck_id,
+                "state": truck_state,
                 "rolling_average": rolling_average,
                 "timestamp": timestamp
             }
 
-            # Backup state to Kafka changelog
+            # Backup complete state to Kafka changelog
             changelog_producer.produce(
                 "streamforge-state-changelog",
                 key=truck_id,
@@ -82,7 +85,7 @@ try:
             )
 
             print("State saved to RocksDB ✓")
-            print("State backed up to Kafka changelog ✓")
+            print("Complete state backed up to Kafka changelog ✓")
             print("-" * 70)
 
         except (json.JSONDecodeError, KeyError) as e:

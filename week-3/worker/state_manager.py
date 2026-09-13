@@ -35,7 +35,9 @@ class StateManager:
         state["readings"] = [
             reading
             for reading in state["readings"]
-            if datetime.fromisoformat(reading["timestamp"]) >= cutoff_time
+            if datetime.fromisoformat(
+                reading["timestamp"]
+            ) >= cutoff_time
         ]
 
         self.db[truck_id] = json.dumps(state)
@@ -71,6 +73,15 @@ class StateManager:
         ]
 
         return sum(temperatures) / len(temperatures)
+
+    def restore_state(self, truck_id, state):
+
+        self.db[truck_id] = json.dumps(state)
+
+        print(
+            f"State restored for {truck_id} "
+            f"from Kafka changelog ✓"
+        )
 
     def close(self):
 

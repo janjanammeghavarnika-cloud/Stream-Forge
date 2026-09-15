@@ -1,21 +1,37 @@
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+from urllib.request import urlopen
+from prometheus_client import CollectorRegistry, Gauge, Counter, Histogram
+import re
+import time
 
-from pathlib import Path
-import sys
 
-# Allow importing Week 4 metrics
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+WORKER_URLS = {
+    "worker-1": "http://localhost:8001/metrics",
+    "worker-2": "http://localhost:8002/metrics"
+}
 
-from metrics.metrics import (
-    events_processed,
-    events_per_second,
-    processing_lag,
-    worker_status,
-    processing_time,
-    start_metrics_server,
-    EventRateTracker
-)
+
+def fetch_worker_metrics():
+    all_metrics = []
+
+    for worker, url in WORKER_URLS.items():
+
+        try:
+            with urlopen(url, timeout=2) as response:
+                data = response.read().decode("utf-8")
+
+            all_metrics.append(
+                f"# Worker: {worker}\n{data}"
+            )
+
+        except Exception as e:
+
+            all_metrics.append(
+                f"# Worker: {worker} unavailable\n"
+                f"# Error: {e}\n"
+            )
+
+    return "\n".join(all_metrics).encode("utf-8")
 
 
 class MetricsHandler(BaseHTTPRequestHandler):
@@ -24,20 +40,43 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
         if self.path == "/metrics":
 
-            metrics = generate_latest()
+            metrics = fetch_worker_metrics()
 
             self.send_response(200)
+
             self.send_header(
                 "Content-Type",
-                CONTENT_TYPE_LATEST
+                "text/plain; version=0.0.4"
             )
+
             self.send_header(
                 "Content-Length",
                 str(len(metrics))
             )
+
             self.end_headers()
 
             self.wfile.write(metrics)
+
+        elif self.path == "/":
+
+            message = (
+                b"StreamForge Week 4 Metrics Backend\n"
+                b"Use /metrics to view worker metrics."
+            )
+
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "text/plain"
+            )
+            self.send_header(
+                "Content-Length",
+                str(len(message))
+            )
+            self.end_headers()
+
+            self.wfile.write(message)
 
         else:
 
@@ -63,12 +102,11 @@ def start_backend(port=8000):
     print("StreamForge Week 4 Metrics Backend")
     print("----------------------------------------")
     print(f"Metrics endpoint: http://localhost:{port}/metrics")
+    print("Worker 1 source: http://localhost:8001/metrics")
+    print("Worker 2 source: http://localhost:8002/metrics")
     print("Backend running...")
     print("Press CTRL+C to stop.")
     print("----------------------------------------")
-
-    # Mark backend worker as running
-    worker_status.labels(worker="backend").set(1)
 
     try:
         server.serve_forever()
@@ -79,7 +117,6 @@ def start_backend(port=8000):
 
     finally:
 
-        worker_status.labels(worker="backend").set(0)
         server.server_close()
 
 

@@ -42,11 +42,17 @@ class MetricsHandler(BaseHTTPRequestHandler):
 
             metrics = fetch_worker_metrics()
 
+           
             self.send_response(200)
 
             self.send_header(
-                "Content-Type",
-                "text/plain; version=0.0.4"
+    "Access-Control-Allow-Origin",
+    "*"
+)
+
+            self.send_header(
+            "Content-Type",
+            "text/plain; version=0.0.4"
             )
 
             self.send_header(

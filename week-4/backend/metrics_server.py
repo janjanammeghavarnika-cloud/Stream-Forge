@@ -9,9 +9,29 @@ WORKER_URLS = {
     "worker-1": "http://localhost:8001/metrics",
     "worker-2": "http://localhost:8002/metrics"
 }
+bottleneck_worker = Gauge(
+    "streamforge_bottleneck_worker",
+    "Worker currently identified as the bottleneck",
+    ["worker"]
+)
+def identify_bottleneck(metrics_data):
+    worker_lags = {}
 
+    for worker, data in metrics_data.items():
+        match = re.search(
+            r"streamforge_processing_lag_ms\{worker=\"[^\"]+\"\}\s+([\d.]+)",
+            data
+        )
 
+        if match:
+            worker_lags[worker] = float(match.group(1))
+
+    if not worker_lags:
+        return None
+
+    return max(worker_lags, key=worker_lags.get)
 def fetch_worker_metrics():
+    worker_data = {}
     all_metrics = []
 
     for worker, url in WORKER_URLS.items():
@@ -20,20 +40,37 @@ def fetch_worker_metrics():
             with urlopen(url, timeout=2) as response:
                 data = response.read().decode("utf-8")
 
+            worker_data[worker] = data
+
             all_metrics.append(
                 f"# Worker: {worker}\n{data}"
             )
 
         except Exception as e:
 
+            worker_data[worker] = ""
+
             all_metrics.append(
                 f"# Worker: {worker} unavailable\n"
                 f"# Error: {e}\n"
             )
 
+    bottleneck = identify_bottleneck(worker_data)
+
+    all_metrics.append(
+        "# HELP streamforge_bottleneck_worker "
+        "Worker currently identified as the bottleneck\n"
+        "# TYPE streamforge_bottleneck_worker gauge"
+    )
+
+    for worker in WORKER_URLS:
+        value = 1 if worker == bottleneck else 0
+
+        all_metrics.append(
+            f'streamforge_bottleneck_worker{{worker="{worker}"}} {value}'
+        )
+
     return "\n".join(all_metrics).encode("utf-8")
-
-
 class MetricsHandler(BaseHTTPRequestHandler):
 
     def do_GET(self):

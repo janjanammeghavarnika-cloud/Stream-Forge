@@ -49,7 +49,7 @@ consumer = Consumer({
 changelog_consumer = Consumer({
     "bootstrap.servers": "localhost:9092",
     "group.id": "streamforge-state-recovery-v2",
-    "auto.offset.reset": "earliest",
+    "auto.offset.reset": "latest",
 })
 
 
